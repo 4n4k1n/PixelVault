@@ -22,49 +22,65 @@ Your files → Raspberry Pi → Syncthing → Pixel (DCIM/<name>) → Google Pho
 ## Setup
 
 ### 1. Flash the Pi
+
 Raspberry Pi Imager → Raspberry Pi OS Lite (64-bit) → set hostname, enable SSH, configure Wi-Fi in advanced settings.
 
 ### 2. First boot
+
 ```
 ssh pi@<hostname>.local
 sudo apt update && sudo apt full-upgrade -y
 ```
+
 Reserve a static IP for the Pi in your router.
 
 ### 3. Install Syncthing
+
 ```
 sudo apt install syncthing -y
 sudo systemctl enable --now syncthing@<your-username>
 ```
+
 Access the GUI via SSH tunnel:
+
 ```
 ssh -L 8384:localhost:8384 pi@<hostname>.local
 ```
+
 Then open `http://localhost:8384`.
 
 ### 4. Create a folder per person
-e.g. `~/PixelBackup/<name>`. Set **Folder Type = Send Only** on the Pi side — this stops Google Photos' auto-delete-after-backup on the phone from wiping your Pi copy.
+
+e.g. `~/PixelBackup/<name>`. Set **Folder Type = Send & Receive** on the Pi side and turn on **File Versioning = Trash Can** (clean out after 14 days) — when the phone auto-deletes a backed-up file, the delete syncs back and cleans up the Pi too.
 
 ### 5. Pair the Pixel
+
 Install Syncthing-Fork (F-Droid), add the Pi as a device, accept the folder share, and set the local folder to:
+
 ```
 /storage/emulated/0/DCIM/<name>
 ```
+
 **Important:** it must be under `DCIM`, not a separate folder — Google Photos only auto-backs-up folders inside `DCIM`.
 
 ### 6. Turn on Google Photos backup
+
 On the Pixel, per account: Google Photos → Backup → turn on. Original quality is automatic on this device (no manual quality toggle needed).
 
 ### 7. Get files onto the Pi
+
 Simplest: [File Browser](https://github.com/filebrowser/filebrowser), a self-hosted web upload UI:
+
 ```
 curl -fsSL https://raw.githubusercontent.com/filebrowser/get/master/get.sh | bash
 filebrowser -r /home/<user>/PixelBackup -a 0.0.0.0 -p 8080 -d /home/<user>/filebrowser-data/filebrowser.db
 ```
+
 Run as a systemd service so it survives reboots (see `filebrowser.service` example below).
 
 ### 8. Manage phone storage
-The Pixel has limited storage. On the phone: use "Free up space" in Google Photos, or enable auto-delete-after-backup.
+
+Enable **Smart Storage** on the Pixel (Settings → Storage). Backed-up photos are auto-deleted after 30 days, and the deletion syncs back to the Pi.
 
 ## Files in this repo
 
@@ -74,17 +90,16 @@ The Pixel has limited storage. On the phone: use "Free up space" in Google Photo
 [Unit]
 Description=File Browser
 After=network.target
-
 [Service]
 ExecStart=/usr/local/bin/filebrowser -r /home/<user>/PixelBackup -a 0.0.0.0 -p 8080 -d /home/<user>/filebrowser-data/filebrowser.db
 Restart=always
 User=<user>
-
 [Install]
 WantedBy=multi-user.target
 ```
 
 Enable it with:
+
 ```
 sudo systemctl daemon-reload
 sudo systemctl enable --now filebrowser
@@ -94,3 +109,4 @@ sudo systemctl enable --now filebrowser
 
 - Works identically for photos and videos.
 - The Pi is a **relay, not a permanent archive** — Google Photos is the actual long-term storage.
+- There is no API to verify backup status. Instead, Google Photos' own auto-delete confirms it: a file deleted from the phone was backed up. Files older than ~30 days on the Pi mean backup is stalled — check the phone.
