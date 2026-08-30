@@ -23,37 +23,35 @@ Your files → Raspberry Pi → Syncthing → Pixel (DCIM/<name>) → Google Pho
 
 ### 1. Flash the Pi
 
-Raspberry Pi Imager → Raspberry Pi OS Lite (64-bit) → set hostname, enable SSH, configure Wi-Fi in advanced settings.
+Raspberry Pi Imager → Raspberry Pi OS Lite (64-bit) → set hostname, enable SSH, configure Wi-Fi in advanced settings. Reserve a static IP for the Pi in your router.
 
-### 2. First boot
+### 2. Run the setup script
 
 ```
 ssh pi@<hostname>.local
-sudo apt update && sudo apt full-upgrade -y
+sudo apt full-upgrade -y
+curl -fsSL https://raw.githubusercontent.com/4n4k1n/PixelVault/main/setup.sh | bash
 ```
 
-Reserve a static IP for the Pi in your router.
+It asks for a Telegram bot token (leave empty to skip the bot), then installs and enables:
 
-### 3. Install Syncthing
+- **Syncthing** — the sync engine
+- **File Browser** on port 8080 — web upload UI, default login `admin`/`admin`, change it
+- **relaybot** — Telegram upload bot, if you gave a token
 
-```
-sudo apt install syncthing -y
-sudo systemctl enable --now syncthing@<your-username>
-```
+Re-running it is safe.
 
-Access the GUI via SSH tunnel:
+### 3. Create a folder per person
+
+Open the Syncthing GUI:
 
 ```
 ssh -L 8384:localhost:8384 pi@<hostname>.local
 ```
 
-Then open `http://localhost:8384`.
+Then `http://localhost:8384` → add folder `~/PixelBackup/<name>`, **Folder Type = Send & Receive**, **File Versioning = Trash Can** (clean out after 14 days) — when the phone auto-deletes a backed-up file, the delete syncs back and cleans up the Pi too.
 
-### 4. Create a folder per person
-
-e.g. `~/PixelBackup/<name>`. Set **Folder Type = Send & Receive** on the Pi side and turn on **File Versioning = Trash Can** (clean out after 14 days) — when the phone auto-deletes a backed-up file, the delete syncs back and cleans up the Pi too.
-
-### 5. Pair the Pixel
+### 4. Pair the Pixel
 
 Install Syncthing-Fork (F-Droid), add the Pi as a device, accept the folder share, and set the local folder to:
 
@@ -63,49 +61,41 @@ Install Syncthing-Fork (F-Droid), add the Pi as a device, accept the folder shar
 
 **Important:** it must be under `DCIM`, not a separate folder — Google Photos only auto-backs-up folders inside `DCIM`.
 
-### 6. Turn on Google Photos backup
+### 5. Turn on Google Photos backup
 
 On the Pixel, per account: Google Photos → Backup → turn on. Original quality is automatic on this device (no manual quality toggle needed).
 
-### 7. Get files onto the Pi
+### 6. Get files onto the Pi
 
-Simplest: [File Browser](https://github.com/filebrowser/filebrowser), a self-hosted web upload UI:
+Three ways, pick any:
 
-```
-curl -fsSL https://raw.githubusercontent.com/filebrowser/get/master/get.sh | bash
-filebrowser -r /home/<user>/PixelBackup -a 0.0.0.0 -p 8080 -d /home/<user>/filebrowser-data/filebrowser.db
-```
+- **File Browser** — `http://<pi-ip>:8080`, drag and drop.
+- **Telegram bot** — send files to your bot. Must be sent as **File** (attach → File), not as a photo, or Telegram compresses them. Bots can only download up to 20 MB. Add yourself to the `users` map in `main.go` (Telegram user ID → folder name) and push; CI builds a new binary.
+- **Syncthing on your own phone** — add the Pi as a device and share the same `PixelBackup/<name>` folder. Set the phone side to **Send Only** — otherwise the auto-deletions from step 7 wipe the files on your phone too.
 
-Run as a systemd service so it survives reboots (see `filebrowser.service` example below).
-
-To upload from your own phone: install Syncthing-Fork on it, add the Pi as a device, and share the same `PixelBackup/<name>` folder. Set the phone side to **Send Only** — otherwise the auto-deletions from step 8 wipe the files on your phone too. Anything you drop in that folder syncs phone → Pi → Pixel → Google Photos.
-
-### 8. Manage phone storage
+### 7. Manage phone storage
 
 Enable **Smart Storage** on the Pixel (Settings → Storage). Backed-up photos are auto-deleted after 30 days, and the deletion syncs back to the Pi.
 
+### 8. Remote access (optional)
+
+Tailscale puts the Pi and your phone on one private encrypted network, so File Browser, SSH and the Syncthing GUI reach the Pi from mobile data as if you were home. The photo sync itself does **not** need it.
+
+On the Pi:
+
+```
+curl -fsSL https://tailscale.com/install.sh | sh
+sudo tailscale up          # open the login link it prints
+tailscale ip -4            # the 100.x.x.x address to use
+```
+
+Install the Tailscale app on your phone and log in with the same account. Then File Browser is `http://100.x.x.x:8080` and SSH goes to the same IP.
+
 ## Files in this repo
 
-- `filebrowser.service` — systemd unit to keep File Browser running:
-
-```ini
-[Unit]
-Description=File Browser
-After=network.target
-[Service]
-ExecStart=/usr/local/bin/filebrowser -r /home/<user>/PixelBackup -a 0.0.0.0 -p 8080 -d /home/<user>/filebrowser-data/filebrowser.db
-Restart=always
-User=<user>
-[Install]
-WantedBy=multi-user.target
-```
-
-Enable it with:
-
-```
-sudo systemctl daemon-reload
-sudo systemctl enable --now filebrowser
-```
+- `setup.sh` — installs and enables everything on the Pi (step 2)
+- `main.go` — the Telegram relay bot
+- `.github/workflows/release.yml` — builds the arm64 bot binary on push and republishes the `latest` release, which `setup.sh` downloads
 
 ## Notes
 
