@@ -7,18 +7,38 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 )
 
-var users = map[int64]string{
-	8969454987: "anakin",
-}
-
 var baseDir = os.Getenv("HOME") + "/PixelBackup"
 
+// parseUsers reads USERS="<telegram-id>:<folder>,<telegram-id>:<folder>".
+func parseUsers(s string) map[int64]string {
+	users := map[int64]string{}
+	for _, pair := range strings.Split(s, ",") {
+		idStr, folder, ok := strings.Cut(strings.TrimSpace(pair), ":")
+		if !ok {
+			continue
+		}
+		id, err := strconv.ParseInt(strings.TrimSpace(idStr), 10, 64)
+		if err != nil {
+			continue
+		}
+		users[id] = filepath.Base(strings.TrimSpace(folder))
+	}
+	return users
+}
+
 func main() {
+	users := parseUsers(os.Getenv("USERS"))
+	if len(users) == 0 {
+		log.Fatal(`USERS empty, expected USERS="123456789:anakin"`)
+	}
+
 	bot, err := tgbotapi.NewBotAPI(os.Getenv("BOT_TOKEN"))
 	if err != nil {
 		log.Fatal(err)
@@ -65,7 +85,7 @@ func save(bot *tgbotapi.BotAPI, fileID, folder, name string) string {
 
 	dir := filepath.Join(baseDir, folder)
 	os.MkdirAll(dir, 0755)
-	dst := filepath.Join(dir, name)
+	dst := filepath.Join(dir, filepath.Base(name))
 	out, err := os.Create(dst)
 	if err != nil {
 		return "write failed: " + err.Error()

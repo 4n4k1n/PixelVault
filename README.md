@@ -70,7 +70,7 @@ On the Pixel, per account: Google Photos → Backup → turn on. Original qualit
 Three ways, pick any:
 
 - **File Browser** — `http://<pi-ip>:8080`, drag and drop.
-- **Telegram bot** — send files to your bot. Must be sent as **File** (attach → File), not as a photo, or Telegram compresses them. Bots can only download up to 20 MB. Add yourself to the `users` map in `main.go` (Telegram user ID → folder name) and push; CI builds a new binary.
+- **Telegram bot** — send files to your bot. Must be sent as **File** (attach → File), not as a photo, or Telegram compresses them. Bots can only download up to 20 MB. Who may upload is set in `/etc/relaybot.env` as `USERS="<telegram-id>:<folder>"`, comma-separated for more people — `setup.sh` asks for it. Get your ID from `@userinfobot`. To change it later, edit that file and `sudo systemctl restart relaybot`.
 - **Syncthing on your own phone** — add the Pi as a device and share the same `PixelBackup/<name>` folder. Set the phone side to **Send Only** — otherwise the auto-deletions from step 7 wipe the files on your phone too.
 
 ### 7. Manage phone storage

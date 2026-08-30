@@ -6,6 +6,10 @@ set -euo pipefail
 if [[ $EUID -eq 0 ]]; then echo "run as your normal user, not root"; exit 1; fi
 
 read -rsp "Telegram BOT_TOKEN (empty = skip relaybot): " BOT_TOKEN </dev/tty; echo
+if [[ -n $BOT_TOKEN ]]; then
+  echo "Who may upload? Get your ID from @userinfobot on Telegram."
+  read -rp 'USERS ("<id>:<folder>", comma-separated): ' USERS </dev/tty
+fi
 
 sudo apt update
 sudo apt install -y syncthing curl
@@ -36,7 +40,7 @@ if [[ -n $BOT_TOKEN ]]; then
     https://github.com/4n4k1n/PixelVault/releases/download/latest/relaybot
   sudo chmod +x /usr/local/bin/relaybot
 
-  printf 'BOT_TOKEN=%s\n' "$BOT_TOKEN" | sudo tee /etc/relaybot.env >/dev/null
+  printf 'BOT_TOKEN=%s\nUSERS=%s\n' "$BOT_TOKEN" "$USERS" | sudo tee /etc/relaybot.env >/dev/null
   sudo chmod 600 /etc/relaybot.env
 
   sudo tee /etc/systemd/system/relaybot.service >/dev/null <<EOF
