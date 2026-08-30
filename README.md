@@ -78,6 +78,8 @@ filebrowser -r /home/<user>/PixelBackup -a 0.0.0.0 -p 8080 -d /home/<user>/fileb
 
 Run as a systemd service so it survives reboots (see `filebrowser.service` example below).
 
+To upload from your own phone: install Syncthing-Fork on it, add the Pi as a device, and share the same `PixelBackup/<name>` folder. Set the phone side to **Send Only** — otherwise the auto-deletions from step 8 wipe the files on your phone too. Anything you drop in that folder syncs phone → Pi → Pixel → Google Photos.
+
 ### 8. Manage phone storage
 
 Enable **Smart Storage** on the Pixel (Settings → Storage). Backed-up photos are auto-deleted after 30 days, and the deletion syncs back to the Pi.
